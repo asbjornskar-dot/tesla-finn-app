@@ -27,11 +27,11 @@ if st.sidebar.button("🔄 Oppdater Tesla-data frå FINN"):
     with st.spinner("Hentar nye Tesla-annonsar frå FINN..."):
         df_ny = finn_hent_tesla.lagre_csv(CSV_FILE, max_pages=10)
 
-if df_ny.empty:
-    st.sidebar.error("Fekk ingen annonser frå FINN. Prøv igjen om litt.")
-else:
-    st.session_state["df"] = df_ny
-    st.sidebar.success(f"Oppdatert! {len(df_ny)} annonser.")
+    if df_ny.empty:
+        st.sidebar.error("Fekk ingen annonser frå FINN. Prøv igjen om litt.")
+    else:
+        st.session_state["df"] = df_ny
+        st.sidebar.success(f"Oppdatert! {len(df_ny)} annonser.")
 
 # Bruk session-state om den finst
 if "df" in st.session_state:
