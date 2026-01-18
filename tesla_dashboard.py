@@ -4,7 +4,12 @@ import pandas as pd
 st.set_page_config(page_title="Tesla på FINN", layout="wide")
 st.title("🚗 Tesla på FINN – Analyse & prisforslag")
 
-df = pd.read_csv("tesla_finn.csv")
+import os
+if os.path.exists("tesla_finn.csv"):
+    df = pd.read_csv("tesla_finn.csv")
+else:
+    import finn_hent_tesla
+    df = pd.read_csv("tesla_finn.csv")
 
 tab1, tab2 = st.tabs(["📊 Alle Tesla", "💰 Prisforslag"])
 
