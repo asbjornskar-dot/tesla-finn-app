@@ -15,8 +15,6 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0"
 }
 
-annonser = []
-
 def finn_modell(text):
     t = text.lower()
     if "model s" in t:
@@ -51,42 +49,53 @@ def finn_interiør(text):
         return "Svart"
     return "Ukjent"
 
-for page in range(1, 21):
-    PARAMS["page"] = page
-    r = requests.get(URL, params=PARAMS, headers=HEADERS)
-    soup = BeautifulSoup(r.text, "html.parser")
 
-    for art in soup.select("article"):
-        try:
-            tekst = art.get_text(" ", strip=True)
-            tittel = art.select_one("h2").get_text(strip=True)
+def hent_tesla_dataframe(max_pages=10, sleep_sec=1):
+    annonser = []
 
-            pris_txt = art.select_one("[data-testid='price']").get_text()
-            pris = int(re.sub(r"\D", "", pris_txt))
+    for page in range(1, max_pages + 1):
+        PARAMS["page"] = page
+        r = requests.get(URL, params=PARAMS, headers=HEADERS, timeout=20)
+        soup = BeautifulSoup(r.text, "html.parser")
 
-            km_match = re.search(r"(\d[\d\s]*)\s?km", tekst)
-            km = int(km_match.group(1).replace(" ", "")) if km_match else None
+        for art in soup.select("article"):
+            try:
+                tekst = art.get_text(" ", strip=True)
+                tittel = art.select_one("h2").get_text(strip=True)
 
-            år_match = re.search(r"(19|20)\d{2}", tekst)
-            år = int(år_match.group()) if år_match else None
+                pris_txt = art.select_one("[data-testid='price']").get_text()
+                pris = int(re.sub(r"\D", "", pris_txt))
 
-            lenke = art.find("a", href=True)["href"]
-            full_lenke = "https://www.finn.no" + lenke
+                km_match = re.search(r"(\d[\d\s]*)\s?km", tekst)
+                km = int(km_match.group(1).replace(" ", "")) if km_match else None
 
-            annonser.append({
-                "Modell": finn_modell(tittel),
-                "Årsmodell": år,
-                "Km": km,
-                "Pris": pris,
-                "Drivlinje": finn_drivlinje(tekst),
-                "Farge": finn_farge(tekst),
-                "Interiør": finn_interiør(tekst),
-                "FINN-link": full_lenke
-            })
-        except:
-            continue
+                år_match = re.search(r"(19|20)\d{2}", tekst)
+                år = int(år_match.group()) if år_match else None
 
-    time.sleep(1)
+                a = art.find("a", href=True)
+                full_lenke = "https://www.finn.no" + a["href"] if a else None
 
-df = pd.DataFrame(annonser)
-df.to_csv("tesla_finn.csv", index=False)
+                annonser.append({
+                    "Modell": finn_modell(tittel),
+                    "Årsmodell": år,
+                    "Km": km,
+                    "Pris": pris,
+                    "Drivlinje": finn_drivlinje(tekst),
+                    "Farge": finn_farge(tekst),
+                    "Interiør": finn_interiør(tekst),
+                    "FINN-link": full_lenke
+                })
+            except:
+                continue
+
+        time.sleep(sleep_sec)
+
+    df = pd.DataFrame(annonser)
+    df = df.dropna(subset=["Pris"])  # trygging
+    return df
+
+
+def lagre_csv(filename="tesla_finn.csv", max_pages=10):
+    df = hent_tesla_dataframe(max_pages=max_pages)
+    df.to_csv(filename, index=False)
+    return df
