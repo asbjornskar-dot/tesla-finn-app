@@ -66,6 +66,12 @@ def hent_tesla_dataframe(max_pages: int = 10, sleep_sec: int = 1) -> pd.DataFram
         soup = BeautifulSoup(r.text, "html.parser")
         arts = soup.select("article")
         print("Fant article:", len(arts))
+        # FINN gir ofte tom side etter side 1 (innhold lastes via JS).
+# Når vi får 0 articles: stopp her, men behold annonser vi allerede har funnet.
+if page > 1 and len(arts) == 0:
+    print("Stopper: FINN gir ingen <article> på side", page)
+    break
+
 
         for art in arts:
             try:
