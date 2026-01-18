@@ -115,21 +115,15 @@ if page > 1 and len(arts) == 0:
 
     df = pd.DataFrame(annonser)
 
-    if df.empty:
-        return pd.DataFrame(
-            columns=[
-                "Modell",
-                "Årsmodell",
-                "Km",
-                "Pris",
-                "Drivlinje",
-                "Farge",
-                "Interiør",
-                "FINN-link",
-            ]
-        )
+if df.empty:
+    print("Ingen annonser samlet.")
+    return pd.DataFrame(columns=[
+        "Modell", "Årsmodell", "Km", "Pris",
+        "Drivlinje", "Farge", "Interiør", "FINN-link"
+    ])
 
-    return df
+return df
+
 
 
 def lagre_csv(filename: str = "tesla_finn.csv", max_pages: int = 10) -> pd.DataFrame:
