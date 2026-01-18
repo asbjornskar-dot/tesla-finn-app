@@ -77,11 +77,27 @@ def hent_tesla_dataframe(max_pages: int = 10, sleep_sec: int = 1) -> pd.DataFram
             try:
                 tekst = art.get_text(" ", strip=True)
 
-                tittel_tag = art.select_one("h2")
-                pris_tag = art.select_one("[data-testid='price']")
+               tittel_tag = art.select_one("h2")
+if not tittel_tag:
+    continue
 
-                if not tittel_tag or not pris_tag:
-                    continue
+tittel = tittel_tag.get_text(strip=True)
+
+# PRØV å finne pris – fallback til tekst
+pris = None
+pris_tag = art.select_one("[data-testid='price']")
+if pris_tag:
+    pris_txt = pris_tag.get_text()
+    try:
+        pris = int(re.sub(r"\D", "", pris_txt))
+    except:
+        pris = None
+else:
+    pris_match = re.search(r"(\d{2,3}\s?\d{3})\s?kr", art.get_text())
+    if pris_match:
+        pris = int(pris_match.group(1).replace(" ", ""))
+
+                    pris=None
 
                 tittel = tittel_tag.get_text(strip=True)
 
