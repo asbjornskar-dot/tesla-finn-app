@@ -61,9 +61,16 @@ def hent_tesla_dataframe(max_pages: int = 10, sleep_sec: int = 1) -> pd.DataFram
         PARAMS["page"] = page
 
         r = requests.get(URL, params=PARAMS, headers=HEADERS, timeout=20)
-        soup = BeautifulSoup(r.text, "html.parser")
+        print("Status:", r.status_code, "Page:", page)
+print("URL:", r.url)
 
-        for art in soup.select("article"):
+        soup = BeautifulSoup(r.text, "html.parser")
+arts = soup.select("article")
+print("Fant article:", len(arts))
+
+
+        for art in arts:
+
             try:
                 tekst = art.get_text(" ", strip=True)
                 tittel = art.select_one("h2").get_text(strip=True)
@@ -117,4 +124,6 @@ def hent_tesla_dataframe(max_pages: int = 10, sleep_sec: int = 1) -> pd.DataFram
 def lagre_csv(filename: str = "tesla_finn.csv", max_pages: int = 10) -> pd.DataFrame:
     df = hent_tesla_dataframe(max_pages=max_pages)
     df.to_csv(filename, index=False)
+    print("Antall annonser funnet:", len(df))
+
     return df
