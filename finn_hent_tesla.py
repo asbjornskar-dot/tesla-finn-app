@@ -54,6 +54,19 @@ def finn_interiør(text: str) -> str:
     return "Ukjent"
 
 
+def parse_pris_fra_tekst(tekst: str):
+    """
+    Prøv å finne pris frå tekst som: "349 000 kr"
+    """
+    m = re.search(r"(\d{2,3}(?:\s?\d{3})+)\s*kr", tekst.lower())
+    if not m:
+        return None
+    try:
+        return int(m.group(1).replace(" ", ""))
+    except Exception:
+        return None
+
+
 def hent_tesla_dataframe(max_pages: int = 10, sleep_sec: int = 1) -> pd.DataFrame:
     annonser = []
 
@@ -64,11 +77,15 @@ def hent_tesla_dataframe(max_pages: int = 10, sleep_sec: int = 1) -> pd.DataFram
         print("Status:", r.status_code, "Page:", page)
         print("URL:", r.url)
 
+        if r.status_code != 200:
+            print("Stopper pga status != 200")
+            break
+
         soup = BeautifulSoup(r.text, "html.parser")
         arts = soup.select("article")
         print("Fant article:", len(arts))
 
-        # FINN gir ofte tom side etter side 1 (innhold lastes via JS)
+        # FINN side 2+ kan vere JS / tom
         if page > 1 and len(arts) == 0:
             print("Stopper: FINN gir ingen <article> på side", page)
             break
@@ -77,42 +94,54 @@ def hent_tesla_dataframe(max_pages: int = 10, sleep_sec: int = 1) -> pd.DataFram
             try:
                 tekst = art.get_text(" ", strip=True)
 
-               tittel_tag = art.select_one("h2")
-if not tittel_tag:
-    continue
-
-tittel = tittel_tag.get_text(strip=True)
-
-# PRØV å finne pris – fallback til tekst
-pris = None
-pris_tag = art.select_one("[data-testid='price']")
-if pris_tag:
-    pris_txt = pris_tag.get_text()
-    try:
-        pris = int(re.sub(r"\D", "", pris_txt))
-    except:
-        pris = None
-else:
-    pris_match = re.search(r"(\d{2,3}\s?\d{3})\s?kr", art.get_text())
-    if pris_match:
-        pris = int(pris_match.group(1).replace(" ", ""))
-
-                    pris=None
-
+                # Tittel
+                tittel_tag = art.select_one("h2")
+                if not tittel_tag:
+                    continue
                 tittel = tittel_tag.get_text(strip=True)
 
-                pris_txt = pris_tag.get_text()
-                pris = int(re.sub(r"\D", "", pris_txt))
+                # Pris (1) prøv data-testid
+                pris = None
+                pris_tag = art.select_one("[data-testid='price']")
+                if pris_tag:
+                    pris_txt = pris_tag.get_text(" ", strip=True)
+                    try:
+                        pris = int(re.sub(r"\D", "", pris_txt))
+                    except Exception:
+                        pris = None
 
-                km_match = re.search(r"(\d[\d\s]*)\s?km", tekst)
-                km = int(km_match.group(1).replace(" ", "")) if km_match else None
+                # Pris (2) fallback
+                if pris is None:
+                    pris = parse_pris_fra_tekst(tekst)
 
+                # km
+                km = None
+                km_match = re.search(r"(\d[\d\s]*)\s?km", tekst.lower())
+                if km_match:
+                    try:
+                        km = int(km_match.group(1).replace(" ", ""))
+                    except Exception:
+                        km = None
+
+                # år
+                år = None
                 år_match = re.search(r"(19|20)\d{2}", tekst)
-                år = int(år_match.group()) if år_match else None
+                if år_match:
+                    try:
+                        år = int(år_match.group())
+                    except Exception:
+                        år = None
 
+                # link
+                full_lenke = None
                 a = art.find("a", href=True)
-                full_lenke = "https://www.finn.no" + a["href"] if a else None
+                if a and a.get("href"):
+                    if a["href"].startswith("http"):
+                        full_lenke = a["href"]
+                    else:
+                        full_lenke = "https://www.finn.no" + a["href"]
 
+                # Merk: vi tar med annonsen sjølv om pris er None
                 annonser.append(
                     {
                         "Modell": finn_modell(tittel),
@@ -125,6 +154,7 @@ else:
                         "FINN-link": full_lenke,
                     }
                 )
+
             except Exception:
                 continue
 
@@ -132,7 +162,7 @@ else:
 
     df = pd.DataFrame(annonser)
 
-    # Tom DF med korrekte kolonner hvis ingen annonser
+    # tom DF med rette kolonner om ingen annonser
     if df.empty:
         print("Ingen annonser samlet.")
         return pd.DataFrame(
@@ -154,5 +184,7 @@ else:
 def lagre_csv(filename: str = "tesla_finn.csv", max_pages: int = 10) -> pd.DataFrame:
     df = hent_tesla_dataframe(max_pages=max_pages)
     print("Antall annonser funnet:", len(df))
+
+    # lagre alltid CSV
     df.to_csv(filename, index=False)
     return df
